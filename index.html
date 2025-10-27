@@ -1,312 +1,453 @@
-import React, { useState, useEffect } from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-
-const DiningEtiquetteSurvey = () => {
-  const [answers, setAnswers] = useState({});
-  const [submitted, setSubmitted] = useState(false);
-  const [userScore, setUserScore] = useState(0);
-  const [allScores, setAllScores] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  const questions = [
-    { id: 1, text: "I know the correct placement of forks (salad fork outside, dinner fork inside) on the left of the plate.", category: "Place Settings" },
-    { id: 2, text: "I understand that knives and spoons go on the right side, with the knife blade facing inward.", category: "Place Settings" },
-    { id: 3, text: "I know the bread plate goes on the upper left, above the forks.", category: "Place Settings" },
-    { id: 4, text: "I know the water glass is placed above the knife on the upper right.", category: "Place Settings" },
-    { id: 5, text: "I understand wine glasses are arranged to the right of the water glass in order of use.", category: "Place Settings" },
-    { id: 6, text: "I know dessert utensils are placed horizontally above the dinner plate.", category: "Place Settings" },
-    { id: 7, text: "I use the outermost utensils first and work my way inward with each course.", category: "Course Etiquette" },
-    { id: 8, text: "When eating soup, I sip gently from the side of the spoon, moving it away from me.", category: "Course Etiquette" },
-    { id: 9, text: "I cut my food one bite at a time rather than cutting everything at once.", category: "Course Etiquette" },
-    { id: 10, text: "I tear bread into bite-sized pieces and butter each piece individually.", category: "Course Etiquette" },
-    { id: 11, text: "I know to follow my host's lead when special seafood utensils are provided.", category: "Course Etiquette" },
-    { id: 12, text: "For cheese or fruit courses, I use a small knife and fork rather than my fingers.", category: "Course Etiquette" },
-    { id: 13, text: "I practice American dining style: cut with fork in left, switch fork to right hand to eat.", category: "Dining Style" },
-    { id: 14, text: "I place my napkin on my lap after seating and on my chair (not the table) if I leave temporarily.", category: "Napkin Etiquette" },
-    { id: 15, text: "I chew quietly with my mouth closed and avoid speaking while chewing.", category: "Dining Behavior" },
-    { id: 16, text: "I discreetly remove inedible items (bones, gristle) with my fork and place them on the side of my plate.", category: "Dining Behavior" },
-    { id: 17, text: "I keep my elbows off the table during the meal.", category: "Dining Behavior" },
-    { id: 18, text: "I use the 'b and d' hand trick to remember which side is for bread (left) and drinks (right).", category: "Dining Behavior" },
-    { id: 19, text: "If I drop a utensil in a restaurant, I ask the server for a replacement rather than picking it up.", category: "Problem Solving" },
-    { id: 20, text: "I signal I'm finished by placing fork and knife side-by-side from 4 to 10 o'clock position.", category: "Signaling" },
-    { id: 21, text: "I arrive on time to formal dining events.", category: "Guest Etiquette" },
-    { id: 22, text: "I wait to begin eating until the host lifts their fork.", category: "Guest Etiquette" },
-    { id: 23, text: "I avoid controversial topics during formal meals.", category: "Guest Etiquette" },
-    { id: 24, text: "I thank the host and follow up with a note or message of appreciation after formal dinners.", category: "Guest Etiquette" }
-  ];
-
-  const answerOptions = [
-    { value: 'yes', label: 'Yes', points: 4 },
-    { value: 'sometimes', label: 'Sometimes', points: 2 },
-    { value: 'no', label: 'No', points: 0 },
-    { value: 'other', label: 'Other', points: 1 }
-  ];
-
-  useEffect(() => {
-    loadScores();
-  }, []);
-
-  const loadScores = async () => {
-    try {
-      const result = await window.storage.list('survey_score:', true);
-      if (result && result.keys) {
-        const scores = [];
-        for (const key of result.keys) {
-          try {
-            const scoreData = await window.storage.get(key, true);
-            if (scoreData) {
-              scores.push(JSON.parse(scoreData.value));
-            }
-          } catch (err) {
-            console.log('Error loading score:', err);
-          }
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Formal Dining Etiquette Survey</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
-        setAllScores(scores);
-      }
-    } catch (error) {
-      console.log('No existing scores yet');
-      setAllScores([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleAnswerChange = (questionId, value) => {
-    setAnswers(prev => ({
-      ...prev,
-      [questionId]: value
-    }));
-  };
-
-  const calculateScore = () => {
-    let total = 0;
-    questions.forEach(q => {
-      const answer = answers[q.id];
-      const option = answerOptions.find(opt => opt.value === answer);
-      if (option) {
-        total += option.points;
-      }
-    });
-    return total;
-  };
-
-  const handleSubmit = async () => {
-    if (Object.keys(answers).length !== questions.length) {
-      alert('Please answer all questions before submitting.');
-      return;
-    }
-
-    const score = calculateScore();
-    setUserScore(score);
-    
-    const timestamp = Date.now();
-    const scoreData = {
-      score,
-      timestamp,
-      date: new Date().toISOString()
-    };
-
-    try {
-      await window.storage.set(`survey_score:${timestamp}`, JSON.stringify(scoreData), true);
-      await loadScores();
-    } catch (error) {
-      console.error('Error saving score:', error);
-    }
-
-    setSubmitted(true);
-  };
-
-  const getScoreCategory = (score) => {
-    const maxScore = questions.length * 4;
-    const percentage = (score / maxScore) * 100;
-    
-    if (percentage >= 90) return { label: 'Etiquette Expert', color: 'text-green-600' };
-    if (percentage >= 75) return { label: 'Well-Mannered', color: 'text-blue-600' };
-    if (percentage >= 60) return { label: 'Good Foundation', color: 'text-yellow-600' };
-    if (percentage >= 40) return { label: 'Room for Growth', color: 'text-orange-600' };
-    return { label: 'Beginner', color: 'text-red-600' };
-  };
-
-  const getPercentile = (score) => {
-    if (allScores.length === 0) return 50;
-    const sorted = [...allScores].sort((a, b) => a.score - b.score);
-    const position = sorted.filter(s => s.score < score).length;
-    return Math.round((position / sorted.length) * 100);
-  };
-
-  const getScoreDistribution = () => {
-    const ranges = [
-      { name: '0-24', min: 0, max: 24, count: 0 },
-      { name: '25-48', min: 25, max: 48, count: 0 },
-      { name: '49-72', min: 49, max: 72, count: 0 },
-      { name: '73-96', min: 73, max: 96, count: 0 }
-    ];
-
-    allScores.forEach(s => {
-      const range = ranges.find(r => s.score >= r.min && s.score <= r.max);
-      if (range) range.count++;
-    });
-
-    return ranges;
-  };
-
-  const resetSurvey = () => {
-    setAnswers({});
-    setSubmitted(false);
-    setUserScore(0);
-  };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
-        <div className="text-xl text-slate-600">Loading survey...</div>
-      </div>
-    );
-  }
-
-  if (submitted) {
-    const maxScore = questions.length * 4;
-    const percentage = ((userScore / maxScore) * 100).toFixed(1);
-    const category = getScoreCategory(userScore);
-    const percentile = getPercentile(userScore);
-    const distribution = getScoreDistribution();
-
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
-        <div className="max-w-4xl mx-auto">
-          <div className="bg-white rounded-lg shadow-lg p-8 mb-6">
-            <h1 className="text-3xl font-bold text-slate-800 mb-6 text-center">Your Results</h1>
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            padding: 40px;
+            margin-bottom: 20px;
+        }
+        
+        h1 {
+            color: #1e293b;
+            text-align: center;
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: #64748b;
+            margin-bottom: 30px;
+        }
+        
+        .category {
+            margin-bottom: 40px;
+        }
+        
+        .category-title {
+            color: #334155;
+            font-size: 1.3em;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        
+        .question {
+            background: #f8fafc;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .question-text {
+            color: #1e293b;
+            font-weight: 500;
+            margin-bottom: 15px;
+        }
+        
+        .options {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 10px;
+        }
+        
+        .option {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 12px;
+            border: 2px solid #cbd5e1;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .option:hover {
+            border-color: #94a3b8;
+            background: #f1f5f9;
+        }
+        
+        .option input {
+            margin-right: 8px;
+        }
+        
+        .option input:checked + label {
+            font-weight: 600;
+        }
+        
+        .option.selected {
+            border-color: #3b82f6;
+            background: #dbeafe;
+            color: #1e40af;
+        }
+        
+        .submit-section {
+            margin-top: 30px;
+            padding-top: 30px;
+            border-top: 2px solid #e2e8f0;
+        }
+        
+        .submit-btn {
+            width: 100%;
+            padding: 16px;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .submit-btn:hover {
+            background: #2563eb;
+        }
+        
+        .progress {
+            text-align: center;
+            color: #64748b;
+            margin-top: 15px;
+        }
+        
+        .results {
+            text-align: center;
+        }
+        
+        .score-display {
+            font-size: 4em;
+            font-weight: bold;
+            color: #1e293b;
+            margin: 20px 0;
+        }
+        
+        .score-label {
+            font-size: 1.5em;
+            color: #64748b;
+            margin-bottom: 10px;
+        }
+        
+        .category-label {
+            font-size: 1.8em;
+            font-weight: 600;
+            margin-top: 20px;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+        
+        .stat-card {
+            background: #f8fafc;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #3b82f6;
+        }
+        
+        .stat-label {
+            color: #64748b;
+            margin-top: 5px;
+        }
+        
+        .info-box {
+            background: #dbeafe;
+            border: 1px solid #93c5fd;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        
+        .info-title {
+            color: #1e3a8a;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+        
+        .info-text {
+            color: #1e40af;
+        }
+        
+        .reset-btn {
+            width: 100%;
+            padding: 16px;
+            background: #475569;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1em;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: background 0.2s;
+        }
+        
+        .reset-btn:hover {
+            background: #334155;
+        }
+        
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <div id="survey-view">
+                <h1>Formal Dining Etiquette Survey</h1>
+                <p class="subtitle">Test your knowledge of proper dining etiquette and see how you compare!</p>
+                
+                <form id="survey-form">
+                    <!-- Questions will be inserted here -->
+                </form>
+                
+                <div class="submit-section">
+                    <button type="button" class="submit-btn" onclick="submitSurvey()">
+                        Submit Survey & View Results
+                    </button>
+                    <div class="progress" id="progress">0 of 24 questions answered</div>
+                </div>
+            </div>
             
-            <div className="text-center mb-8">
-              <div className="text-6xl font-bold text-slate-800 mb-2">{userScore}</div>
-              <div className="text-xl text-slate-600 mb-1">out of {maxScore} points ({percentage}%)</div>
-              <div className={`text-2xl font-semibold ${category.color} mt-4`}>{category.label}</div>
-            </div>
-
-            {allScores.length > 0 && (
-              <div className="mb-8 p-6 bg-slate-50 rounded-lg">
-                <h2 className="text-xl font-semibold text-slate-800 mb-4">Score Comparison</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                  <div className="text-center p-4 bg-white rounded-lg">
-                    <div className="text-sm text-slate-600 mb-1">Your Percentile</div>
-                    <div className="text-3xl font-bold text-blue-600">{percentile}%</div>
-                    <div className="text-xs text-slate-500 mt-1">Better than {percentile}% of respondents</div>
-                  </div>
-                  <div className="text-center p-4 bg-white rounded-lg">
-                    <div className="text-sm text-slate-600 mb-1">Average Score</div>
-                    <div className="text-3xl font-bold text-slate-700">
-                      {(allScores.reduce((sum, s) => sum + s.score, 0) / allScores.length).toFixed(1)}
+            <div id="results-view" class="hidden">
+                <div class="results">
+                    <h1>Your Results</h1>
+                    <div class="score-display" id="score-display">0</div>
+                    <div class="score-label">out of 96 points (<span id="percentage">0</span>%)</div>
+                    <div class="category-label" id="category-label"></div>
+                    
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-value" id="percentile">--</div>
+                            <div class="stat-label">Your Percentile</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="average">--</div>
+                            <div class="stat-label">Average Score</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="total-responses">--</div>
+                            <div class="stat-label">Total Responses</div>
+                        </div>
                     </div>
-                    <div className="text-xs text-slate-500 mt-1">out of {maxScore} points</div>
-                  </div>
+                    
+                    <div class="info-box">
+                        <div class="info-title">📊 Note About Data Storage</div>
+                        <div class="info-text">
+                            Your score is stored locally in your browser. Data is only shared with others using the same device/browser.
+                        </div>
+                    </div>
+                    
+                    <button class="reset-btn" onclick="resetSurvey()">Take Survey Again</button>
                 </div>
-
-                <div className="mt-6">
-                  <h3 className="text-lg font-semibold text-slate-700 mb-3">Score Distribution</h3>
-                  <ResponsiveContainer width="100%" height={250}>
-                    <BarChart data={distribution}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="name" />
-                      <YAxis />
-                      <Tooltip />
-                      <Legend />
-                      <Bar dataKey="count" fill="#3b82f6" name="Number of Respondents" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            )}
-
-            <div className="mt-8 p-6 bg-blue-50 rounded-lg border border-blue-200">
-              <h3 className="text-lg font-semibold text-blue-900 mb-3">📊 Note About Shared Data</h3>
-              <p className="text-sm text-blue-800">
-                Your score has been anonymously added to our public database and is visible to all users 
-                taking this survey. This helps everyone compare their etiquette knowledge with others!
-              </p>
             </div>
-
-            <button
-              onClick={resetSurvey}
-              className="w-full mt-6 bg-slate-700 text-white py-3 px-6 rounded-lg hover:bg-slate-800 transition-colors font-medium"
-            >
-              Take Survey Again
-            </button>
-          </div>
         </div>
-      </div>
-    );
-  }
-
-  const groupedQuestions = questions.reduce((acc, q) => {
-    if (!acc[q.category]) acc[q.category] = [];
-    acc[q.category].push(q);
-    return acc;
-  }, {});
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
-      <div className="max-w-4xl mx-auto">
-        <div className="bg-white rounded-lg shadow-lg p-8 mb-6">
-          <h1 className="text-3xl font-bold text-slate-800 mb-2 text-center">
-            Formal Dining Etiquette Survey
-          </h1>
-          <p className="text-center text-slate-600 mb-6">
-            Test your knowledge of proper dining etiquette and see how you compare to others!
-          </p>
-
-          {Object.entries(groupedQuestions).map(([category, categoryQuestions]) => (
-            <div key={category} className="mb-8">
-              <h2 className="text-xl font-semibold text-slate-700 mb-4 pb-2 border-b-2 border-slate-200">
-                {category}
-              </h2>
-              
-              {categoryQuestions.map((question) => (
-                <div key={question.id} className="mb-6 p-4 bg-slate-50 rounded-lg">
-                  <p className="text-slate-800 mb-3 font-medium">
-                    {question.id}. {question.text}
-                  </p>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                    {answerOptions.map((option) => (
-                      <label
-                        key={option.value}
-                        className={`flex items-center justify-center p-3 border-2 rounded-lg cursor-pointer transition-all ${
-                          answers[question.id] === option.value
-                            ? 'border-blue-500 bg-blue-50 text-blue-700'
-                            : 'border-slate-200 hover:border-slate-300 hover:bg-slate-100'
-                        }`}
-                      >
-                        <input
-                          type="radio"
-                          name={`question-${question.id}`}
-                          value={option.value}
-                          checked={answers[question.id] === option.value}
-                          onChange={(e) => handleAnswerChange(question.id, e.target.value)}
-                          className="mr-2"
-                        />
-                        <span className="font-medium">{option.label}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          ))}
-
-          <div className="mt-8 pt-6 border-t-2 border-slate-200">
-            <button
-              onClick={handleSubmit}
-              className="w-full bg-blue-600 text-white py-4 px-6 rounded-lg hover:bg-blue-700 transition-colors text-lg font-semibold shadow-md"
-            >
-              Submit Survey & View Results
-            </button>
-            <p className="text-sm text-slate-500 text-center mt-3">
-              {Object.keys(answers).length} of {questions.length} questions answered
-            </p>
-          </div>
-        </div>
-      </div>
     </div>
-  );
-};
 
-export default DiningEtiquetteSurvey;
+    <script>
+        const questions = [
+            { id: 1, text: "I know the correct placement of forks (salad fork outside, dinner fork inside) on the left of the plate.", category: "Place Settings" },
+            { id: 2, text: "I understand that knives and spoons go on the right side, with the knife blade facing inward.", category: "Place Settings" },
+            { id: 3, text: "I know the bread plate goes on the upper left, above the forks.", category: "Place Settings" },
+            { id: 4, text: "I know the water glass is placed above the knife on the upper right.", category: "Place Settings" },
+            { id: 5, text: "I understand wine glasses are arranged to the right of the water glass in order of use.", category: "Place Settings" },
+            { id: 6, text: "I know dessert utensils are placed horizontally above the dinner plate.", category: "Place Settings" },
+            { id: 7, text: "I use the outermost utensils first and work my way inward with each course.", category: "Course Etiquette" },
+            { id: 8, text: "When eating soup, I sip gently from the side of the spoon, moving it away from me.", category: "Course Etiquette" },
+            { id: 9, text: "I cut my food one bite at a time rather than cutting everything at once.", category: "Course Etiquette" },
+            { id: 10, text: "I tear bread into bite-sized pieces and butter each piece individually.", category: "Course Etiquette" },
+            { id: 11, text: "I know to follow my host's lead when special seafood utensils are provided.", category: "Course Etiquette" },
+            { id: 12, text: "For cheese or fruit courses, I use a small knife and fork rather than my fingers.", category: "Course Etiquette" },
+            { id: 13, text: "I practice American dining style: cut with fork in left, switch fork to right hand to eat.", category: "Dining Style" },
+            { id: 14, text: "I place my napkin on my lap after seating and on my chair (not the table) if I leave temporarily.", category: "Napkin Etiquette" },
+            { id: 15, text: "I chew quietly with my mouth closed and avoid speaking while chewing.", category: "Dining Behavior" },
+            { id: 16, text: "I discreetly remove inedible items (bones, gristle) with my fork and place them on the side of my plate.", category: "Dining Behavior" },
+            { id: 17, text: "I keep my elbows off the table during the meal.", category: "Dining Behavior" },
+            { id: 18, text: "I use the 'b and d' hand trick to remember which side is for bread (left) and drinks (right).", category: "Dining Behavior" },
+            { id: 19, text: "If I drop a utensil in a restaurant, I ask the server for a replacement rather than picking it up.", category: "Problem Solving" },
+            { id: 20, text: "I signal I'm finished by placing fork and knife side-by-side from 4 to 10 o'clock position.", category: "Signaling" },
+            { id: 21, text: "I arrive on time to formal dining events.", category: "Guest Etiquette" },
+            { id: 22, text: "I wait to begin eating until the host lifts their fork.", category: "Guest Etiquette" },
+            { id: 23, text: "I avoid controversial topics during formal meals.", category: "Guest Etiquette" },
+            { id: 24, text: "I thank the host and follow up with a note or message of appreciation after formal dinners.", category: "Guest Etiquette" }
+        ];
+
+        const answerOptions = [
+            { value: 'yes', label: 'Yes', points: 4 },
+            { value: 'sometimes', label: 'Sometimes', points: 2 },
+            { value: 'no', label: 'No', points: 0 },
+            { value: 'other', label: 'Other', points: 1 }
+        ];
+
+        let answers = {};
+
+        function initSurvey() {
+            const form = document.getElementById('survey-form');
+            const grouped = {};
+            
+            questions.forEach(q => {
+                if (!grouped[q.category]) grouped[q.category] = [];
+                grouped[q.category].push(q);
+            });
+            
+            let html = '';
+            Object.entries(grouped).forEach(([category, qs]) => {
+                html += `<div class="category">
+                    <h2 class="category-title">${category}</h2>`;
+                
+                qs.forEach(q => {
+                    html += `<div class="question">
+                        <div class="question-text">${q.id}. ${q.text}</div>
+                        <div class="options">`;
+                    
+                    answerOptions.forEach(opt => {
+                        html += `<div class="option" onclick="selectAnswer(${q.id}, '${opt.value}', this)">
+                            <input type="radio" name="q${q.id}" value="${opt.value}" id="q${q.id}_${opt.value}">
+                            <label for="q${q.id}_${opt.value}">${opt.label}</label>
+                        </div>`;
+                    });
+                    
+                    html += `</div></div>`;
+                });
+                
+                html += `</div>`;
+            });
+            
+            form.innerHTML = html;
+        }
+
+        function selectAnswer(questionId, value, element) {
+            const parent = element.parentElement;
+            parent.querySelectorAll('.option').forEach(opt => opt.classList.remove('selected'));
+            element.classList.add('selected');
+            
+            answers[questionId] = value;
+            updateProgress();
+        }
+
+        function updateProgress() {
+            const count = Object.keys(answers).length;
+            document.getElementById('progress').textContent = `${count} of ${questions.length} questions answered`;
+        }
+
+        function calculateScore() {
+            let total = 0;
+            questions.forEach(q => {
+                const answer = answers[q.id];
+                const option = answerOptions.find(opt => opt.value === answer);
+                if (option) total += option.points;
+            });
+            return total;
+        }
+
+        function getScoreCategory(score) {
+            const percentage = (score / 96) * 100;
+            if (percentage >= 90) return { label: 'Etiquette Expert', color: '#059669' };
+            if (percentage >= 75) return { label: 'Well-Mannered', color: '#2563eb' };
+            if (percentage >= 60) return { label: 'Good Foundation', color: '#ca8a04' };
+            if (percentage >= 40) return { label: 'Room for Growth', color: '#ea580c' };
+            return { label: 'Beginner', color: '#dc2626' };
+        }
+
+        function submitSurvey() {
+            if (Object.keys(answers).length !== questions.length) {
+                alert('Please answer all questions before submitting.');
+                return;
+            }
+
+            const score = calculateScore();
+            const scoreData = {
+                score: score,
+                timestamp: Date.now(),
+                date: new Date().toISOString()
+            };
+
+            // Save to localStorage
+            let allScores = [];
+            try {
+                const stored = localStorage.getItem('diningEtiquetteScores');
+                if (stored) allScores = JSON.parse(stored);
+            } catch (e) {}
+
+            allScores.push(scoreData);
+            localStorage.setItem('diningEtiquetteScores', JSON.stringify(allScores));
+
+            // Display results
+            displayResults(score, allScores);
+        }
+
+        function displayResults(score, allScores) {
+            const percentage = ((score / 96) * 100).toFixed(1);
+            const category = getScoreCategory(score);
+
+            document.getElementById('score-display').textContent = score;
+            document.getElementById('percentage').textContent = percentage;
+            
+            const categoryLabel = document.getElementById('category-label');
+            categoryLabel.textContent = category.label;
+            categoryLabel.style.color = category.color;
+
+            // Calculate stats
+            if (allScores.length > 0) {
+                const sorted = [...allScores].sort((a, b) => a.score - b.score);
+                const position = sorted.filter(s => s.score < score).length;
+                const percentile = Math.round((position / sorted.length) * 100);
+                const average = (allScores.reduce((sum, s) => sum + s.score, 0) / allScores.length).toFixed(1);
+
+                document.getElementById('percentile').textContent = percentile + '%';
+                document.getElementById('average').textContent = average;
+                document.getElementById('total-responses').textContent = allScores.length;
+            }
+
+            // Show results, hide survey
+            document.getElementById('survey-view').classList.add('hidden');
+            document.getElementById('results-view').classList.remove('hidden');
+        }
+
+        function resetSurvey() {
+            answers = {};
+            document.getElementById('survey-view').classList.remove('hidden');
+            document.getElementById('results-view').classList.add('hidden');
+            initSurvey();
+            updateProgress();
+            window.scrollTo(0, 0);
+        }
+
+        // Initialize on load
+        initSurvey();
+    </script>
+</body>
+</html>
